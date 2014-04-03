@@ -1,0 +1,396 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Weather Search</title>
+<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.3.0/pure-min.css">
+<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.3.0/base-min.css">
+<link rel="stylesheet" href="http://yui.yahooapis.com/3.13.0/build/cssbutton/cssbutton.css">
+<style>
+body
+{
+	background:url('images.jpg');
+	background-size:100%;
+	background-repeat:no-repeat;
+	margin-left: 100px;
+	margin-right: 100px;
+	margin-top: 20px;
+}
+caption {
+color:white;
+}
+
+a {
+color:white;
+}
+#yahooLink, #cityLink {
+	outline: 0;
+	text-decoration: none;
+}
+h1
+{
+	font-size: 125px;
+	margin: 0;
+	font-weight: normal;
+}
+
+h2
+{
+font-size:4.5em;
+margin: 0;
+font-weight: normal;
+}
+
+h3
+{
+font-size: 40px;
+margin: 0;
+font-weight: normal;
+}
+
+b {
+font-size: 20px;
+}
+h1,h2,h3,#weatherInfo,#fbPost,#footer,b {
+color:white;
+font-family:"Calibri";
+}
+.tablecaption {
+	text-align: left;
+	font-style:normal;
+	margin-left: -190px;
+}
+.yui3-button-icon {
+    background-image: url('fbImage.jpg');
+    background-repeat: no-repeat;
+    display: inline-block;
+    height: 30px;
+    vertical-align: middle;
+    width: 110px;
+    background-position: 0;
+    transition: none;
+	text-decoration: none !important;
+}
+
+#openFacebookDialog.yui3-button:hover {
+    background-image: url('fbImage.jpg');
+}
+
+.high-temp-column {
+	color:orange;
+	font-weight: bold;
+}
+.low-temp-column {
+	color:deepskyblue;
+	font-weight: bold;
+}
+.day-column, .text-column, .low-temp-column, .high-temp-column {
+	font-family:"Calibri";
+	font-size: 15px;
+}
+
+#container {
+padding-left: 60px;
+padding-right: 190px;
+}
+#container .column {
+  position: relative;
+  float: left;
+}
+#forecastTable {
+  padding: 10px 20px;    /* CC padding */
+  width: 100%;
+}
+#weatherInfo {
+	width: 180px;
+	right: 60px;
+	top: 30px;
+}
+#fbPost {
+	width: 220px;
+	right: -650px;
+	top: 40px;
+}
+#footer-wrapper {
+  float: left;
+  position: fixed;
+  width: 100%;
+  top: 500px;
+  right:20px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  margin-left: 100px;
+   margin-right: 100px;
+}
+#footer {
+  position: relative;
+}
+</style>
+<script src="http://yui.yahooapis.com/3.13.0/build/yui/yui-min.js"></script>
+<!-- <script src="javascript/yui-min.js"></script> -->
+<script>
+	var jsonString;
+	var jsonObj;
+	var locationText;
+	var type;
+	var tempUnit;
+	
+	YUI().use('button', function (Y) {
+     // A push button widget
+		var buttonSearch = new Y.Button({
+        srcNode: '#Search'	
+    });
+	
+	var openFacebookDialog1 = new Y.Button({
+        srcNode: '#openFacebookDialog'
+	});
+	
+	 var toggleButton = new Y.ToggleButton({
+        srcNode: '#toggleTemp'
+    });
+	});
+	function toggleTempUnit() {
+		if(tempUnit =="f") {
+			document.getElementById("toggleTemp").value="C";
+			tempUnit="c";
+		}
+		else if(tempUnit =="c") {
+			document.getElementById("toggleTemp").value="F";
+			tempUnit="f";
+		}
+		getJSONWeatherData();
+	}
+	function getJSONWeatherData()
+	{
+		locationText=document.getElementById("location").value;
+		var isError=false;
+		var numericregex=/^\d*$/
+		var zipcoderegex=/\b\d{5}\b/g
+		var alpharegex=/^[a-zA-Z0-9\s]+(?:[.'\-,][a-zA-Z0-9\s]+)*$/
+		if(locationText!="") {
+		if(numericregex.test(locationText)==true) {
+			if(zipcoderegex.test(locationText)==true) {
+				isError=false;
+				type="zip";	
+			}
+			else {
+				isError=true;
+				alert('Invalid zipcode: must be five digits\nExample: 90089');
+			}
+		}
+		else {
+			if(alpharegex.test(locationText)==true) {
+				var countComma = locationText.split(",").length - 1;
+				var dataArray = locationText.split(",");
+				for (var i=0; i < dataArray.length; i++) {
+					if (/^\s*$/.test(dataArray[i]) || dataArray[i]=="") {
+						isError=true;
+						alert('Invalid location: must include state or country separated by comma\nExample: Los Angeles, CA');
+						break;
+					}
+				}
+				if(isError==false) {
+				if(countComma!=1 && countComma!=2){
+					isError=true;
+					alert('Invalid location: must include state or country separated by comma\nExample: Los Angeles, CA');
+				}
+				else {
+					isError=false;
+					type="city";
+				}
+			}	
+			}
+			else {
+				isError=true;
+				alert('Invalid location: must include state or country separated by comma\nExample: Los Angeles, CA');
+			}
+		}
+		}
+		else {
+			isError=true;
+			alert('Invalid location: Enter a valid zip code or city name');
+		}
+		if(isError==false) {
+		if(tempUnit=="" || tempUnit==null)
+			tempUnit="f";
+		
+		var xmlhttp;
+		if (window.XMLHttpRequest)
+		  {// code for IE7+, Firefox, Chrome, Opera, Safari
+		  	xmlhttp=new XMLHttpRequest();
+		  }
+		else
+		  {// code for IE6, IE5
+		 	 xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+		  }
+		xmlhttp.onreadystatechange=function() {
+		  if (xmlhttp.readyState==4 && xmlhttp.status==200)
+		    {
+		   			    
+			    jsonString=xmlhttp.responseText;
+			    jsonObj = JSON.parse(jsonString);
+				jsonObjData = JSON.parse(jsonString);
+				if(jsonObj.weather.error!=null) {
+					document.getElementById('cityInfo').innerHTML="<b><h3>"+jsonObj.weather.error+"</h3></b>";
+					document.getElementById("weatherInfo").innerHTML=" ";
+					document.getElementById("fbPost").innerHTML=" ";
+					document.getElementById("forecastTable").innerHTML=" ";
+					document.getElementById("yahooLink").href="http://weather.yahoo.com";
+				}
+				else {
+			    city=jsonObj.weather.location.city;
+			    region=jsonObj.weather.location.region;
+			    country=jsonObj.weather.location.country;
+			    img=jsonObj.weather.img;
+			    link=jsonObj.weather.link;
+			    text=jsonObj.weather.condition.text;
+			    temp=jsonObj.weather.condition.temp;
+			    temperature=jsonObj.weather.units.temperature;
+				feed=jsonObj.weather.feed;
+				
+				var data = jsonObjData.weather.forecast;
+				
+				for(i=0;i<jsonObj.weather.forecast.length;i++)  {
+					data[i].high+= "&#176;" +temperature;
+					data[i].low+= "&#176;" +temperature;
+				}
+				
+								
+				document.getElementById("yahooLink").href=link;
+				
+			    if(region=="N/A")
+			    	htmlStr="<h2><a id=cityLink target='_blank' href='" +feed + "'>"+ city +"</a></h2><h3>" + country + "</h3>";
+			    else if(country=="N/A")
+			    	htmlStr="<h2><a id=cityLink target='_blank' href='" +feed + "'>"+ city +"</a></h2><h3>" + region  + "</h3>";
+			    else
+			    	htmlStr="<h2><a id=cityLink target='_blank' href='" +feed + "'>"+ city +"</a></h2><h3>" + region + ", " + country + "</h3>";
+				
+				document.getElementById('cityInfo').innerHTML=htmlStr;
+				
+				
+				htmlStr = "<b><img src="+ img+"> "+text+"<br>&uarr;"+jsonObj.weather.forecast[0].high+ "&deg;" +temperature +"&nbsp;&nbsp;&nbsp;&nbsp;&darr;"+ jsonObj.weather.forecast[0].low + "&deg;"+temperature+"<br></b><h1>" + temp + "&deg;<sup><a href=javascript:toggleTempUnit() id=toggleTemp>"+ temperature + "</a></h1>";
+				document.getElementById('weatherInfo').innerHTML=htmlStr;
+				
+			    htmlStr = "<input type=radio id=postCurrent name=postdet checked><b>Post Current Weather</b>";
+			    htmlStr =htmlStr + "<br><input type=radio id=postForecast name=postdet><b>Post Weather Forecast</b>";
+			    htmlStr =htmlStr + "<br><input type=button onclick=openFacebookDialogBox() id=openFacebookDialog class='yui3-button-icon yui3-button'>"
+				document.getElementById('fbPost').innerHTML=htmlStr;
+				document.getElementById('forecastTable').innerHTML="";
+			    YUI().use('datatable', function (Y) {
+			    	
+			    			var columns = [{label: "Day",key: 'day', className: 'day-column'},{label: "Weather",key: 'text', className: 'text-column'},{label: "High",key: 'high', className: 'high-temp-column', allowHTML:true},{label: "Low",key: 'low', className: 'low-temp-column', allowHTML:true}];
+			    	        var table = new Y.DataTable({
+			    	            columns: columns,
+			    	            data: data,
+
+			    	            // Optionally configure your table with a caption
+			    	            caption: "<b class=tablecaption>Forecast</b>",
+
+			    	            // and/or a summary (table attribute)
+			    	            summary: "Forecast"
+			    	        });
+				        table.render("#forecastTable");
+			});
+			    window.fbAsyncInit = function() {
+			        // init the FB JS SDK
+			        FB.init({
+			          appId      : '619538884755931',                        // App ID from the app dashboard
+			          channelUrl : 'http://connect.facebook.net/en_US/all.js', // Channel file for x-domain comms
+			          status     : true,                                 // Check Facebook Login status
+			          xfbml      : true                                  // Look for social plugins on the page
+			        });
+
+			        // Additional initialization code such as adding Event Listeners goes here
+			      };
+
+			      // Load the SDK asynchronously
+			      (function(d, s, id){
+			         var js, fjs = d.getElementsByTagName(s)[0];
+			         if (d.getElementById(id)) {return;}
+			         js = d.createElement(s); js.id = id;
+			         js.src = "http://connect.facebook.net/en_US/all.js";
+			         fjs.parentNode.insertBefore(js, fjs);
+			       }(document, 'script', 'facebook-jssdk'));
+			      
+			      
+				}
+		    }
+		  }
+		xmlhttp.open("GET","weathersearch?location="+locationText+"&type="+type+"&tempUnit="+tempUnit,true);
+		xmlhttp.setRequestHeader("Connection","Close");
+		xmlhttp.setRequestHeader("Method","GET"+"weathersearch?location="+locationText+"&type="+type+"&tempUnit="+tempUnit+"HTTP/1.1");
+		xmlhttp.send();
+	}
+	}
+	function openFacebookDialogBox() {
+			    	  var postCurrent = document.getElementById("postCurrent");
+					  var postForecast = document.getElementById("postForecast");
+					  var obj;
+					  if(document.getElementById("postCurrent").checked) {
+						  obj = {
+						    		method: 'feed',
+						    		link: feed,
+						    	 	picture: jsonObj.weather.img,
+						    	 	name: city + ", " + region + ", " + country,
+						    	 	caption: "The current condition for " + city + " is " + text + ".", 
+						    	 	description: "Temperature is " + temp + "&deg;" + temperature + ".",
+						    	 	properties: {"Look at details":{"text": "here", "href": link}}
+						    	 	};
+					  }
+					  else {
+						  var description = "";
+						  for(i=0;i<jsonObj.weather.forecast.length;i++)  {
+							  if(i!=jsonObj.weather.forecast.length-1)
+							  	description+=jsonObj.weather.forecast[i].day  + ": " +jsonObj.weather.forecast[i].text+ ", " + jsonObj.weather.forecast[i].high+"/" + jsonObj.weather.forecast[i].low + "&deg;" + temperature + "; ";
+							  else
+							  	description+=jsonObj.weather.forecast[i].day  + ": " +jsonObj.weather.forecast[i].text+ ", " + jsonObj.weather.forecast[i].high+"/" + jsonObj.weather.forecast[i].low + "&deg;" + temperature;
+						  }
+						  obj = {
+						    		method: 'feed',
+						    		link: feed,
+						    	 	picture: "http://www-scf.usc.edu/~csci571/2013Fall/hw8/weather.jpg",
+						    	 	name: city + ", " + region + ", " + country,
+						    	 	caption: "Weather forecast for " + city, 
+						    	 	description: description  +  ".",
+						    	 	properties: {"Look at details":{"text": "here", "href": link}}
+						    	 	};
+						  
+					  }
+						 
+
+			    	 	function callback(response) {
+			    	 		if (response && response.post_id) {
+			    	 		      alert('Post was published.');
+			    	 		    } else {
+			    	 		      alert('Post was not published.');
+			    	 		    }
+			    	 	}
+
+			    	 	FB.ui(obj,callback);
+			    	 		return false;
+			    	 }
+	
+</script>
+</head>
+<body class="yui3-skin-sam">
+
+<div>
+	<form name="weatherForm" class="pure-form">
+		<b>Location:</b> <input type="text" name="location" id="location" placeholder="Enter city or zip code" size="100"/>
+		<input type="button" name="Search" value="Search" onclick="getJSONWeatherData()" class='yui3-button'>
+		
+	</form>
+</div>
+<div id="cityInfo"></div>
+<div id="container">
+<div id="weatherInfo" class="column"></div>
+<div id="fbPost" class="column"></div>
+<div id="forecastTable" class="yui3-skin-sam" class="column"></div>
+</div>
+
+<div id="footer-wrapper">
+  <div id="footer" align="right"><a href="http://weather.yahoo.com" id="yahooLink" target="_blank">View Full Details on <br><img src="yahoo.gif"/></a></div>
+</div>
+<div id="fb-root"></div>
+</body>
+</html>
